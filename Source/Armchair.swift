@@ -244,13 +244,6 @@ public func shouldPromptIfRated(_ shouldPromptIfRated: Bool) {
 }
 
 /*
- * Return whether Armchair will try and present the Storekit review prompt (useful for custom dialog modification)
- */
-public var shouldTryStoreKitReviewPrompt : Bool {
-    return Manager.defaultManager.shouldTryStoreKitReviewPrompt
-}
-
-/*
  * If set to true, the main bundle will always be used to load localized strings.
  * Set this to true if you have provided your own custom localizations in
  * ArmchairLocalizable.strings in your main bundle
@@ -377,8 +370,6 @@ public func resetDefaults() {
     Manager.defaultManager.didDisplayAlertClosure           = nil
     Manager.defaultManager.didOptToRateClosure              = nil
     Manager.defaultManager.didOptToRemindLaterClosure       = nil
-    
-    Manager.defaultManager.customAlertClosure               = nil
 
 #if os(iOS)
     Manager.defaultManager.usesAnimation                    = true
@@ -585,16 +576,12 @@ public func rateApp() {
  */
 
 public typealias ArmchairClosure = () -> ()
-public typealias ArmchairClosureCustomAlert = (_ rateAppClosure: @escaping ArmchairClosure, _ remindLaterClosure: @escaping ArmchairClosure, _ noThanksClosure: @escaping ArmchairClosure) -> ()
 public typealias ArmchairAnimateClosure = (Bool) -> ()
 public typealias ArmchairShouldPromptClosure = (ArmchairTrackingInfo) -> Bool
 public typealias ArmchairShouldIncrementClosure = () -> Bool
 
 public func onDidDisplayAlert(_ didDisplayAlertClosure: ArmchairClosure?) {
     Manager.defaultManager.didDisplayAlertClosure = didDisplayAlertClosure
-}
-public func customAlertClosure(_ customAlertClosure: ArmchairClosureCustomAlert?) {
-    Manager.defaultManager.customAlertClosure = customAlertClosure
 }
 public func onDidDeclineToRate(_ didDeclineToRateClosure: ArmchairClosure?) {
     Manager.defaultManager.didDeclineToRateClosure = didDeclineToRateClosure
@@ -749,7 +736,7 @@ public struct AppiraterKey {
 // MARK: PRIVATE Interface
 
 #if os(iOS)
-    open class ArmchairManager : NSObject, SKStoreProductViewControllerDelegate { }
+    open class ArmchairManager : NSObject, UIAlertViewDelegate, SKStoreProductViewControllerDelegate { }
 #elseif os(OSX)
     open class ArmchairManager : NSObject, NSAlertDelegate { }
 #else
@@ -769,9 +756,8 @@ open class Manager : ArmchairManager {
     // MARK: Review Alert & Properties
     
     #if os(iOS)
-    fileprivate var ratingAlert: UIAlertController? = nil
-    fileprivate let reviewURLTemplate = "itms-apps://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?type=Purple+Software&onlyLatestVersion=true&pageNumber=0&sortOrdering=1&id=APP_ID&at=AFFILIATE_CODE&ct=AFFILIATE_CAMPAIGN_CODE&action=write-review"
-    fileprivate let reviewURLTemplateiOS11 = "https://itunes.apple.com/us/app/idAPP_ID?ls=1&mt=8&at=AFFILIATE_CODE&ct=AFFILIATE_CAMPAIGN_CODE&action=write-review"
+    fileprivate var ratingAlert: UIAlertView? = nil
+    fileprivate let reviewURLTemplate  = "itms-apps://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?type=Purple+Software&onlyLatestVersion=true&pageNumber=0&sortOrdering=1&id=APP_ID&at=AFFILIATE_CODE&ct=AFFILIATE_CAMPAIGN_CODE"
     #elseif os(OSX)
     private var ratingAlert: NSAlert? = nil
     private let reviewURLTemplate = "macappstore://itunes.apple.com/us/app/idAPP_ID?ls=1&mt=12&at=AFFILIATE_CODE&ct=AFFILIATE_CAMPAIGN_CODE"
@@ -949,8 +935,6 @@ open class Manager : ArmchairManager {
     var didOptToRateClosure: ArmchairClosure?
     var didOptToRemindLaterClosure: ArmchairClosure?
     
-    var customAlertClosure: ArmchairClosureCustomAlert?
-    
     #if os(iOS)
     var willPresentModalViewClosure: ArmchairAnimateClosure?
     var didDismissModalViewClosure: ArmchairAnimateClosure?
@@ -1061,7 +1045,7 @@ open class Manager : ArmchairManager {
             userDefaultsObject?.setInteger(incrementKeyCount, forKey:incrementKey)
             
             debugLog("Incremented \(incrementKeyType): \(incrementKeyCount)")
-
+            
         } else if tracksNewVersions {
             // it's a new version of the app, so restart tracking
             resetAllCounters()
@@ -1214,64 +1198,37 @@ open class Manager : ArmchairManager {
         return (daysBeforeReminding > 0 && remindButtonTitle != nil)
     }
     
-    public var shouldTryStoreKitReviewPrompt : Bool {
-        if #available(iOS 10.3, *), useStoreKitReviewPrompt { return true }
-        return false
-    }
-    
-    fileprivate func requestStoreKitReviewPrompt() -> Bool {
-        if #available(iOS 10.3, *), useStoreKitReviewPrompt {
-            SKStoreReviewController.requestReview()
-            // Assume this version is rated. There is no API to tell if the user actaully rated.
-            userDefaultsObject?.setBool(true, forKey: keyForArmchairKeyType(ArmchairKey.RatedCurrentVersion))
-            userDefaultsObject?.setBool(true, forKey: keyForArmchairKeyType(ArmchairKey.RatedAnyVersion))
-            userDefaultsObject?.synchronize()
-            
-            closeModalPanel()
-            return true
-        }
-        return false
-    }
-    
     fileprivate func showRatingAlert() {
-        if let customClosure = customAlertClosure {
-            customClosure({[weak self] in
-                if let result = self?.requestStoreKitReviewPrompt(), result {
-                    ///Showed storekit prompt, all done
-                } else {
-                    /// Didn't show storekit prompt, present app store manually
-                    self?._rateApp()
-                }
-
-            }, {[weak self] in self?.remindMeLater()}, {[weak self] in self?.dontRate()})
-            if let closure = self.didDisplayAlertClosure {
-                closure()
-            }
-        } else {
+        if #available(iOS 9.0, *) {
             #if os(iOS)
-                if requestStoreKitReviewPrompt() {
-                    ///Showed storekit prompt, all done
-                    
-                } else {
-                    /// Didn't show storekit prompt, present app store manually
+                if #available(iOS 10.3, *), useStoreKitReviewPrompt {
+                    SKStoreReviewController.requestReview()
+                    // Assume this version is rated. There is no API to tell if the user actaully rated.
+                    userDefaultsObject?.setBool(true, forKey: keyForArmchairKeyType(ArmchairKey.RatedCurrentVersion))
+                    userDefaultsObject?.setBool(true, forKey: keyForArmchairKeyType(ArmchairKey.RatedAnyVersion))
+                    userDefaultsObject?.synchronize()
+                    return
+                }
+                if (operatingSystemVersion >= 8 && usesAlertController) || operatingSystemVersion >= 9 {
+                    /* iOS 8 uses new UIAlertController API*/
                     let alertView : UIAlertController = UIAlertController(title: reviewTitle, message: reviewMessage, preferredStyle: UIAlertControllerStyle.alert)
-                    alertView.addAction(UIAlertAction(title: cancelButtonTitle, style:UIAlertActionStyle.default, handler: {
+                    let prefferedAction = UIAlertAction(title: rateButtonTitle, style:UIAlertActionStyle.default, handler: {
                         (alert: UIAlertAction!) in
-                        self.dontRate()
-                    }))
+                        self._rateApp()
+                    })
+                    alertView.addAction(prefferedAction)
                     if (showsRemindButton()) {
-                        alertView.addAction(UIAlertAction(title: remindButtonTitle!, style:UIAlertActionStyle.default, handler: {
+                        alertView.addAction(UIAlertAction(title: remindButtonTitle!, style:UIAlertActionStyle.cancel, handler: {
                             (alert: UIAlertAction!) in
                             self.remindMeLater()
                         }))
                     }
-                    alertView.addAction(UIAlertAction(title: rateButtonTitle, style:UIAlertActionStyle.cancel, handler: {
+                    alertView.addAction(UIAlertAction(title: cancelButtonTitle, style:UIAlertActionStyle.default, handler: {
                         (alert: UIAlertAction!) in
-                        self._rateApp()
+                        self.dontRate()
                     }))
-
-                    ratingAlert = alertView
-
+                    alertView.preferredAction = prefferedAction
+                    
                     // get the top most controller (= the StoreKit Controller) and dismiss it
                     if let presentingController = UIApplication.shared.keyWindow?.rootViewController {
                         if let topController = Manager.topMostViewController(presentingController) {
@@ -1284,6 +1241,25 @@ open class Manager : ArmchairManager {
                         }
                         // note that tint color has to be set after the controller is presented in order to take effect (last checked in iOS 9.3)
                         alertView.view.tintColor = tintColor
+                    }
+                    
+                } else {
+                    /* Otherwise we use UIAlertView still */
+                    var alertView: UIAlertView
+                    if (showsRemindButton()) {
+                        alertView = UIAlertView(title: reviewTitle, message: reviewMessage, delegate: self, cancelButtonTitle: cancelButtonTitle, otherButtonTitles: remindButtonTitle!, rateButtonTitle)
+                    } else {
+                        alertView = UIAlertView(title: reviewTitle, message: reviewMessage, delegate: self, cancelButtonTitle: cancelButtonTitle, otherButtonTitles: rateButtonTitle)
+                    }
+                    // If we have a remind button, show it first. Otherwise show the rate button
+                    // If we have a remind button, show the rate button next. Otherwise stop adding buttons.
+                    
+                    alertView.cancelButtonIndex = -1
+                    ratingAlert = alertView
+                    alertView.show()
+                    
+                    if let closure = didDisplayAlertClosure {
+                        closure()
                     }
                 }
                 
@@ -1314,14 +1290,28 @@ open class Manager : ArmchairManager {
                 }
             #else
             #endif
+        } else {
+            // Fallback on earlier versions
         }
-        
     }
     
     // MARK: -
     // MARK: PRIVATE Alert View / StoreKit Delegate Methods
     
     #if os(iOS)
+    open func alertView(_ alertView: UIAlertView, didDismissWithButtonIndex buttonIndex: Int) {
+        // cancelButtonIndex is set to -1 to show the cancel button up top, but a tap on it ends up here with index 0
+        if (alertView.cancelButtonIndex == buttonIndex || 0 == buttonIndex) {
+            // they don't want to rate it
+            dontRate()
+        } else if (showsRemindButton() && 1 == buttonIndex) {
+            // remind them later
+            remindMeLater()
+        } else {
+            // they want to rate it
+            _rateApp()
+        }
+    }
     
     //Delegate call from the StoreKit view.
     open func productViewControllerDidFinish(_ viewController: SKStoreProductViewController!) {
@@ -1330,22 +1320,22 @@ open class Manager : ArmchairManager {
     
     //Close the in-app rating (StoreKit) view and restore the previous status bar style.
     fileprivate func closeModalPanel() {
-        let usedAnimation = usesAnimation
         if modalPanelOpen {
             UIApplication.shared.setStatusBarStyle(currentStatusBarStyle, animated:usesAnimation)
-            
+            let usedAnimation = usesAnimation
             modalPanelOpen = false
             
             // get the top most controller (= the StoreKit Controller) and dismiss it
             if let presentingController = UIApplication.shared.keyWindow?.rootViewController {
                 if let topController = Manager.topMostViewController(presentingController) {
-                    topController.dismiss(animated: usesAnimation) {}
+                    topController.dismiss(animated: usesAnimation) {
+                        if let closure = self.didDismissModalViewClosure {
+                            closure(usedAnimation)
+                        }
+                    }
                     currentStatusBarStyle = UIStatusBarStyle.default
                 }
             }
-        }
-        if let closure = self.didDismissModalViewClosure {
-            closure(usedAnimation)
         }
     }
     
@@ -1439,7 +1429,8 @@ open class Manager : ArmchairManager {
                 if let url = URL(string: reviewURLString()) {
                     UIApplication.shared.openURL(url)
                 }
-            }  
+            }
+            
             // Check for iOS simulator
             #if (arch(i386) || arch(x86_64)) && os(iOS)
                 debugLog("iTunes App Store is not supported on the iOS simulator.")
@@ -1455,19 +1446,13 @@ open class Manager : ArmchairManager {
                 if !opened {
                     debugLog("Failed to open \(url)")
                 }
-
             }
         #else
         #endif
     }
     
     fileprivate func reviewURLString() -> String {
-        #if os(iOS)
-            let template = operatingSystemVersion >= 11 ? reviewURLTemplateiOS11 : reviewURLTemplate
-        #elseif os(OSX)
-            let template = reviewURLTemplate
-        #else
-        #endif
+        let template = reviewURLTemplate
         var reviewURL = template.replacingOccurrences(of: "APP_ID", with: "\(appID)")
         reviewURL = reviewURL.replacingOccurrences(of: "AFFILIATE_CODE", with: "\(affiliateCode)")
         reviewURL = reviewURL.replacingOccurrences(of: "AFFILIATE_CAMPAIGN_CODE", with: "\(affiliateCampaignCode)")
@@ -1757,11 +1742,8 @@ open class Manager : ArmchairManager {
         if let alert = ratingAlert {
             debugLog("Hiding Alert")
             #if os(iOS)
-                let isAlertVisible = alert.isViewLoaded && alert.view.window != nil
-                if isAlertVisible {
-                    alert.dismiss(animated: false, completion: {
-                        self.dontRate()
-                    })
+                if alert.isVisible {
+                    alert.dismiss(withClickedButtonIndex: alert.cancelButtonIndex, animated: false)
                 }
             #elseif os(OSX)
                 if let window = NSApplication.shared.keyWindow {
@@ -1769,7 +1751,7 @@ open class Manager : ArmchairManager {
                         parent.endSheet(window)
                     }
                 }
-
+                
             #else
             #endif
             ratingAlert = nil
@@ -1836,7 +1818,6 @@ open class Manager : ArmchairManager {
             NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationWillEnterForeground(_:)), name: NSApplication.willBecomeActiveNotification, object: nil)
         #else
         #endif
-
     }
     
     // MARK: -
@@ -1861,7 +1842,6 @@ open class Manager : ArmchairManager {
     }
     fileprivate func debugLog(_ log: String, file: StaticString = #file, function: StaticString = #function, line: UInt = #line) {
         logger(self, log, file, function, line)
-
     }
     
 }
