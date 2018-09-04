@@ -1254,19 +1254,19 @@ open class Manager : ArmchairManager {
                     
                 } else {
                     /// Didn't show storekit prompt, present app store manually
-                    let alertView : UIAlertController = UIAlertController(title: reviewTitle, message: reviewMessage, preferredStyle: UIAlertControllerStyle.alert)
-                    let prefferedAction = UIAlertAction(title: rateButtonTitle, style:UIAlertActionStyle.default, handler: {
+                    let alertView : UIAlertController = UIAlertController(title: reviewTitle, message: reviewMessage, preferredStyle: UIAlertController.Style.alert)
+                    let prefferedAction = UIAlertAction(title: rateButtonTitle, style:UIAlertAction.Style.default, handler: {
                         (alert: UIAlertAction!) in
                         self._rateApp()
                     })
                     alertView.addAction(prefferedAction)
                     if (showsRemindButton()) {
-                        alertView.addAction(UIAlertAction(title: remindButtonTitle!, style:UIAlertActionStyle.cancel, handler: {
+                        alertView.addAction(UIAlertAction(title: remindButtonTitle!, style:UIAlertAction.Style.cancel, handler: {
                             (alert: UIAlertAction!) in
                             self.remindMeLater()
                         }))
                     }
-                    alertView.addAction(UIAlertAction(title: cancelButtonTitle, style:UIAlertActionStyle.default, handler: {
+                    alertView.addAction(UIAlertAction(title: cancelButtonTitle, style:UIAlertAction.Style.default, handler: {
                         (alert: UIAlertAction!) in
                         self.dontRate()
                     }))
@@ -1722,11 +1722,11 @@ open class Manager : ArmchairManager {
     private static func getRootViewController() -> UIViewController? {
         if var window = UIApplication.shared.keyWindow {
             
-            if window.windowLevel != UIWindowLevelNormal {
+            if window.windowLevel != UIWindow.Level.normal {
                 let windows: NSArray = UIApplication.shared.windows as NSArray
                 for candidateWindow in windows {
                     if let candidateWindow = candidateWindow as? UIWindow {
-                        if candidateWindow.windowLevel == UIWindowLevelNormal {
+                        if candidateWindow.windowLevel == UIWindow.Level.normal {
                             window = candidateWindow
                             break
                         }
@@ -1836,9 +1836,9 @@ open class Manager : ArmchairManager {
             NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationDidFinishLaunching(_:)),  name: NSNotification.Name.UIApplicationDidFinishLaunching,  object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationWillEnterForeground(_:)), name: NSNotification.Name.UIApplicationWillEnterForeground, object: nil)
         #elseif os(OSX)
-            NotificationCenter.default.addObserver(self, selector: #selector(Manager.appWillResignActive(_:)), name: NSApplication.willResignActiveNotification, object: nil)
-            NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationDidFinishLaunching(_:)), name: NSApplication.didFinishLaunchingNotification, object: nil)
-            NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationWillEnterForeground(_:)), name: NSApplication.willBecomeActiveNotification, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(Manager.appWillResignActive(_:)), name: UIApplication.willResignActiveNotification, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationDidFinishLaunching(_:)), name: UIApplication.didFinishLaunchingNotification, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(Manager.applicationWillEnterForeground(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
         #else
         #endif
 
