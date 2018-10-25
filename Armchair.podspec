@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
 
   s.name                  = "Armchair"
-  s.version               = "0.3.5"
+  s.version               = "0.4.0"
   s.summary               = "A simple yet powerful App Review Manager for iOS and OSX in Swift"
   s.description           = <<-DESC
                             A simple yet powerful App Review Manager for iOS and OSX in Swift.
@@ -22,7 +22,7 @@ Pod::Spec.new do |s|
   s.source                = { :git => 'https://github.com/UrbanApps/Armchair.git', :tag => s.version }
 
   s.license               = { :type => "MIT", :file => "LICENSE" }
-  
+
   s.source_files          = "Source/*.{h,swift}"
   s.resources             = "Localization/*.lproj"
   s.ios.deployment_target = '8.0'
