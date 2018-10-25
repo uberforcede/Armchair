@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
 
   s.name                  = "Armchair"
-  s.version               = "0.4.0"
+  s.version               = "0.4.1"
   s.summary               = "A simple yet powerful App Review Manager for iOS and OSX in Swift"
   s.description           = <<-DESC
                             A simple yet powerful App Review Manager for iOS and OSX in Swift.
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
   s.screenshots           = "https://raw.githubusercontent.com/UrbanApps/Armchair/assets/armchair-iOS.png", "https://raw.githubusercontent.com/UrbanApps/Armchair/assets/armchair-OSX.png"
   s.social_media_url      = 'https://twitter.com/coneybeare'
   s.authors               = { 'Matt Coneybeare' => 'coneybeare@urbanapps.com' }
-  s.source                = { :git => 'https://github.com/UrbanApps/Armchair.git', :tag => s.version }
+  s.source                = { :git => 'https://github.com/uberforcede/Armchair.git', :tag => s.version }
 
   s.license               = { :type => "MIT", :file => "LICENSE" }
 
